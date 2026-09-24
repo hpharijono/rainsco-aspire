@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="RainsCoAspire.ApiService/RainsCoAspire.ApiService.csproj" />
+  <Project Path="RainsCoAspire.AppHost/RainsCoAspire.AppHost.csproj" />
+  <Project Path="RainsCoAspire.ServiceDefaults/RainsCoAspire.ServiceDefaults.csproj" />
+  <Project Path="RainsCoAspire.Tests/RainsCoAspire.Tests.csproj" />
+  <Project Path="RainsCoAspire.Web/RainsCoAspire.Web.csproj" />
+</Solution>

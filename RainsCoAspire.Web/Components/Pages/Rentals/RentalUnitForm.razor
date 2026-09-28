@@ -1,0 +1,205 @@
+@inject ILogger<RentalUnitForm> Logger
+
+<EditForm Model="Model" OnValidSubmit="SubmitAsync">
+    <DataAnnotationsValidator />
+
+    @if (errors.Count > 0)
+    {
+        <div class="alert alert-danger" role="alert">
+            <ul class="mb-0 ps-3">
+                @foreach (var error in errors)
+                {
+                    <li>@error</li>
+                }
+            </ul>
+        </div>
+    }
+
+    <div class="mb-3">
+        <label for="alias" class="form-label">Alias</label>
+        <InputText id="alias" class="form-control" @bind-Value="Model.Alias" placeholder="e.g. Unit A-101" />
+        <ValidationMessage For="() => Model.Alias" />
+    </div>
+
+    <div class="mb-3">
+        <label for="square-meters" class="form-label">Size (m²)</label>
+        <InputNumber id="square-meters" class="form-control" @bind-Value="Model.SquareMeters" step="0.01" min="0" />
+        <ValidationMessage For="() => Model.SquareMeters" />
+    </div>
+
+    <div class="mb-3">
+        <label for="description" class="form-label">Description</label>
+        <InputTextArea id="description" class="form-control" rows="4" @bind-Value="Model.Description" />
+        <ValidationMessage For="() => Model.Description" />
+    </div>
+
+    @if (ExistingImages.Count > 0)
+    {
+        <div class="mb-3">
+            <span class="form-label d-block">Current images</span>
+            <div class="row g-2">
+                @foreach (var image in ExistingImages)
+                {
+                    var isRemoved = removedImageIds.Contains(image.Id);
+                    <div class="col-6 col-sm-4 col-lg-3" @key="image.Id">
+                        <div class="card h-100 @(isRemoved ? "border-danger" : null)">
+                            <img src="@image.Url" alt="@image.FileName" class="card-img-top rental-image @(isRemoved ? "opacity-25" : null)" />
+                            <div class="card-body p-2 d-flex flex-column gap-1">
+                                <span class="small text-truncate" title="@image.FileName">@image.FileName</span>
+                                <button type="button" class="btn btn-sm @(isRemoved ? "btn-outline-secondary" : "btn-outline-danger")"
+                                        disabled="@isBusy" @onclick="() => ToggleRemoval(image.Id)">
+                                    @(isRemoved ? "Keep" : "Remove")
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <div class="mb-3">
+        <label for="images" class="form-label">Add images</label>
+        <InputFile @key="inputFileKey" id="images" class="form-control" OnChange="AddImagesAsync"
+                   accept="@ImageUploadRules.AcceptAttribute" multiple disabled="@isBusy" />
+        <div class="form-text">JPEG, PNG, WebP or GIF, up to 3 MB each.</div>
+        @foreach (var error in fileErrors)
+        {
+            <div class="validation-message">@error</div>
+        }
+
+        @if (newImages.Count > 0)
+        {
+            <ul class="list-group mt-2">
+                @foreach (var image in newImages)
+                {
+                    <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+                        <span class="text-truncate">
+                            @image.FileName <small class="text-body-secondary">(@FormatSize(image.Data.Length))</small>
+                        </span>
+                        <button type="button" class="btn btn-sm btn-outline-danger" disabled="@isBusy" @onclick="() => newImages.Remove(image)">
+                            Remove
+                        </button>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary" disabled="@isBusy">
+            @if (isBusy)
+            {
+                <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+            }
+            @SubmitText
+        </button>
+        <a class="btn btn-outline-secondary" href="@CancelHref">Cancel</a>
+    </div>
+</EditForm>
+
+@code {
+    [Parameter, EditorRequired]
+    public RentalUnitFormModel Model { get; set; } = default!;
+
+    [Parameter]
+    public IReadOnlyList<RentalUnitImage> ExistingImages { get; set; } = [];
+
+    [Parameter, EditorRequired]
+    public string SubmitText { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public string CancelHref { get; set; } = default!;
+
+    // Exceptions thrown by the handler are shown as form errors.
+    [Parameter, EditorRequired]
+    public EventCallback<RentalUnitFormSubmission> OnSubmit { get; set; }
+
+    private readonly List<ImageUpload> newImages = [];
+    private readonly HashSet<Guid> removedImageIds = [];
+    private readonly List<string> errors = [];
+    private readonly List<string> fileErrors = [];
+    private bool isBusy;
+    private Guid inputFileKey = Guid.NewGuid();
+
+    private async Task AddImagesAsync(InputFileChangeEventArgs e)
+    {
+        fileErrors.Clear();
+
+        if (e.FileCount > ImageUploadRules.MaxFilesPerSelection)
+        {
+            fileErrors.Add($"Select at most {ImageUploadRules.MaxFilesPerSelection} images at a time.");
+            return;
+        }
+
+        isBusy = true;
+        try
+        {
+            foreach (var file in e.GetMultipleFiles(ImageUploadRules.MaxFilesPerSelection))
+            {
+                if (!ImageUploadRules.AllowedContentTypes.Contains(file.ContentType))
+                {
+                    fileErrors.Add($"{file.Name}: only JPEG, PNG, WebP or GIF images are allowed.");
+                    continue;
+                }
+
+                if (file.Size > ImageUploadRules.MaxFileSizeBytes)
+                {
+                    fileErrors.Add($"{file.Name}: {FormatSize(file.Size)} is over the 3 MB limit.");
+                    continue;
+                }
+
+                // Read the file now: the browser releases it as soon as the user picks other files.
+                await using var stream = file.OpenReadStream(ImageUploadRules.MaxFileSizeBytes);
+                using var buffer = new MemoryStream();
+                await stream.CopyToAsync(buffer);
+                newImages.Add(new ImageUpload(file.Name, file.ContentType, buffer.ToArray()));
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to read the selected images.");
+            fileErrors.Add("Some images couldn't be read. Please select them again.");
+        }
+        finally
+        {
+            isBusy = false;
+            // Re-create the file input so it doesn't keep showing the previous selection.
+            inputFileKey = Guid.NewGuid();
+        }
+    }
+
+    private void ToggleRemoval(Guid imageId)
+    {
+        if (!removedImageIds.Remove(imageId))
+        {
+            removedImageIds.Add(imageId);
+        }
+    }
+
+    private async Task SubmitAsync()
+    {
+        errors.Clear();
+        isBusy = true;
+        try
+        {
+            await OnSubmit.InvokeAsync(new RentalUnitFormSubmission(Model, [.. newImages], [.. removedImageIds]));
+        }
+        catch (ApiValidationException ex)
+        {
+            errors.AddRange(ex.Errors);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to save the rental unit.");
+            errors.Add("Something went wrong while saving the rental unit. Please try again.");
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private static string FormatSize(long bytes) =>
+        bytes >= 1024 * 1024 ? $"{bytes / (1024d * 1024):0.#} MB" : $"{bytes / 1024d:0} KB";
+}

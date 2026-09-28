@@ -54,3 +54,25 @@ h1:focus {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+
+.rental-thumb {
+    display: block;
+    width: 4.5rem;
+    height: 3.375rem;
+    object-fit: cover;
+}
+
+.rental-image {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+}
+
+.rental-description-cell {
+    max-width: 24rem;
+}
+
+.rental-description {
+    white-space: pre-line;
+}

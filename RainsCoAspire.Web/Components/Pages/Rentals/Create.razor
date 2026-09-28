@@ -1,0 +1,25 @@
+@page "/rentals/create"
+@rendermode InteractiveServer
+
+@inject RentalUnitApiClient RentalApi
+@inject NavigationManager Navigation
+
+<PageTitle>Add rental unit</PageTitle>
+
+<h1>Add rental unit</h1>
+
+<div class="row">
+    <div class="col-lg-8">
+        <RentalUnitForm Model="model" SubmitText="Create" CancelHref="rentals" OnSubmit="CreateAsync" />
+    </div>
+</div>
+
+@code {
+    private readonly RentalUnitFormModel model = new();
+
+    private async Task CreateAsync(RentalUnitFormSubmission submission)
+    {
+        var created = await RentalApi.CreateAsync(submission.Model, submission.NewImages);
+        Navigation.NavigateTo($"rentals/{created.Id}");
+    }
+}

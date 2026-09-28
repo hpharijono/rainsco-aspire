@@ -1,0 +1,69 @@
+@page "/rentals/{Id:int}/edit"
+@rendermode InteractiveServer
+
+@inject RentalUnitApiClient RentalApi
+@inject NavigationManager Navigation
+@inject ILogger<Edit> Logger
+
+<PageTitle>Edit rental unit</PageTitle>
+
+@if (loadFailed)
+{
+    <div class="alert alert-danger" role="alert">The rental unit couldn't be loaded. Please try again.</div>
+}
+else if (!loaded)
+{
+    <p><em>Loading...</em></p>
+}
+else if (unit is null || model is null)
+{
+    <h1>Not found</h1>
+    <p>This rental unit doesn't exist. <a href="rentals">Back to rentals</a></p>
+}
+else
+{
+    <h1>Edit @unit.Alias</h1>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <RentalUnitForm Model="model" ExistingImages="unit.Images" SubmitText="Save" CancelHref="@($"rentals/{Id}")" OnSubmit="SaveAsync" />
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private RentalUnit? unit;
+    private RentalUnitFormModel? model;
+    private bool loaded;
+    private bool loadFailed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            unit = await RentalApi.GetAsync(Id);
+            model = unit is null ? null : RentalUnitFormModel.FromRentalUnit(unit);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load rental unit {Id}.", Id);
+            loadFailed = true;
+        }
+
+        loaded = true;
+    }
+
+    private async Task SaveAsync(RentalUnitFormSubmission submission)
+    {
+        var updated = await RentalApi.UpdateAsync(Id, submission.Model, submission.NewImages, submission.RemovedImageIds);
+        if (updated is null)
+        {
+            throw new ApiValidationException(["This rental unit no longer exists."]);
+        }
+
+        Navigation.NavigateTo($"rentals/{Id}");
+    }
+}

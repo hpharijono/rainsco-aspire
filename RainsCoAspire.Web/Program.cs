@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Http.Resilience;
 using RainsCoAspire.Web;
 using RainsCoAspire.Web.Components;
 
@@ -18,6 +19,27 @@ builder.Services.AddHttpClient<WeatherApiClient>(client =>
         // Learn more about service discovery scheme resolution at https://aka.ms/dotnet/sdschemes.
         client.BaseAddress = new("https+http://apiservice");
     });
+
+// Replace the default resilience handler: uploading several images to S3 can exceed its 10 second
+// attempt timeout, and retrying a POST/PUT could create duplicate rental units or images.
+// RemoveAllResilienceHandlers is marked experimental but is the supported way to override the defaults.
+#pragma warning disable EXTEXP0001
+builder.Services.AddHttpClient<RentalUnitApiClient>(client =>
+    {
+        client.BaseAddress = new("https+http://apiservice");
+        // Timeouts are enforced by the resilience handler below.
+        client.Timeout = Timeout.InfiniteTimeSpan;
+    })
+    .RemoveAllResilienceHandlers()
+    .AddStandardResilienceHandler(options =>
+    {
+        options.Retry.DisableForUnsafeHttpMethods();
+        options.AttemptTimeout.Timeout = TimeSpan.FromMinutes(2);
+        options.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(3);
+        // Must be at least twice the attempt timeout.
+        options.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(4);
+    });
+#pragma warning restore EXTEXP0001
 
 var app = builder.Build();
 

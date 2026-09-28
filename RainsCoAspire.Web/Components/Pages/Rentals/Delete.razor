@@ -1,0 +1,102 @@
+@page "/rentals/{Id:int}/delete"
+@rendermode InteractiveServer
+
+@inject RentalUnitApiClient RentalApi
+@inject NavigationManager Navigation
+@inject ILogger<Delete> Logger
+
+<PageTitle>Delete rental unit</PageTitle>
+
+@if (loadFailed)
+{
+    <div class="alert alert-danger" role="alert">The rental unit couldn't be loaded. Please try again.</div>
+}
+else if (!loaded)
+{
+    <p><em>Loading...</em></p>
+}
+else if (unit is null)
+{
+    <h1>Not found</h1>
+    <p>This rental unit doesn't exist. <a href="rentals">Back to rentals</a></p>
+}
+else
+{
+    <h1>Delete @unit.Alias?</h1>
+
+    <p>
+        This permanently deletes the rental unit and its
+        @unit.Images.Count image@(unit.Images.Count == 1 ? "" : "s").
+    </p>
+
+    <dl class="row">
+        <dt class="col-sm-3">Size</dt>
+        <dd class="col-sm-9">@unit.SquareMeters.ToString("N2") m²</dd>
+
+        <dt class="col-sm-3">Description</dt>
+        <dd class="col-sm-9 rental-description">@(unit.Description ?? "—")</dd>
+    </dl>
+
+    @if (deleteError is not null)
+    {
+        <div class="alert alert-danger" role="alert">@deleteError</div>
+    }
+
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-danger" disabled="@isDeleting" @onclick="DeleteAsync">
+            @if (isDeleting)
+            {
+                <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+            }
+            Delete
+        </button>
+        <a class="btn btn-outline-secondary" href="rentals/@Id">Cancel</a>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private RentalUnit? unit;
+    private bool loaded;
+    private bool loadFailed;
+    private bool isDeleting;
+    private string? deleteError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            unit = await RentalApi.GetAsync(Id);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load rental unit {Id}.", Id);
+            loadFailed = true;
+        }
+
+        loaded = true;
+    }
+
+    private async Task DeleteAsync()
+    {
+        isDeleting = true;
+        deleteError = null;
+        try
+        {
+            // A false result means it was already deleted, which is the outcome we want anyway.
+            await RentalApi.DeleteAsync(Id);
+            Navigation.NavigateTo("rentals");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to delete rental unit {Id}.", Id);
+            deleteError = "Something went wrong while deleting the rental unit. Please try again.";
+        }
+        finally
+        {
+            isDeleting = false;
+        }
+    }
+}

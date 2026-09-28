@@ -1,0 +1,85 @@
+@page "/rentals"
+@attribute [StreamRendering]
+
+@inject RentalUnitApiClient RentalApi
+@inject ILogger<Index> Logger
+
+<PageTitle>Rentals</PageTitle>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h1 class="mb-0">Rentals</h1>
+    <a class="btn btn-primary" href="rentals/create">Add rental unit</a>
+</div>
+
+@if (loadFailed)
+{
+    <div class="alert alert-danger" role="alert">The rental units couldn't be loaded. Please try again.</div>
+}
+else if (units is null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (units.Length == 0)
+{
+    <p>No rental units yet. <a href="rentals/create">Add your first one</a>.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th scope="col"><span class="visually-hidden">Photo</span></th>
+                    <th scope="col">Alias</th>
+                    <th scope="col" class="text-end">Size (m²)</th>
+                    <th scope="col">Description</th>
+                    <th scope="col" class="text-end">Images</th>
+                    <th scope="col"><span class="visually-hidden">Actions</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var unit in units)
+                {
+                    <tr>
+                        <td>
+                            @if (unit.Images.Count > 0)
+                            {
+                                <img src="@unit.Images[0].Url" alt="" class="rental-thumb rounded" />
+                            }
+                            else
+                            {
+                                <div class="rental-thumb rounded bg-body-secondary"></div>
+                            }
+                        </td>
+                        <td><a href="rentals/@unit.Id">@unit.Alias</a></td>
+                        <td class="text-end">@unit.SquareMeters.ToString("N2")</td>
+                        <td class="text-truncate rental-description-cell">@unit.Description</td>
+                        <td class="text-end">@unit.Images.Count</td>
+                        <td class="text-end text-nowrap">
+                            <a class="btn btn-sm btn-outline-primary" href="rentals/@unit.Id/edit">Edit</a>
+                            <a class="btn btn-sm btn-outline-danger" href="rentals/@unit.Id/delete">Delete</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private RentalUnit[]? units;
+    private bool loadFailed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            units = await RentalApi.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load rental units.");
+            loadFailed = true;
+        }
+    }
+}

@@ -1,0 +1,87 @@
+@page "/rentals/{Id:int}"
+@attribute [StreamRendering]
+
+@inject RentalUnitApiClient RentalApi
+@inject ILogger<Details> Logger
+
+<PageTitle>@(unit?.Alias ?? "Rental unit")</PageTitle>
+
+@if (loadFailed)
+{
+    <div class="alert alert-danger" role="alert">The rental unit couldn't be loaded. Please try again.</div>
+}
+else if (!loaded)
+{
+    <p><em>Loading...</em></p>
+}
+else if (unit is null)
+{
+    <h1>Not found</h1>
+    <p>This rental unit doesn't exist. <a href="rentals">Back to rentals</a></p>
+}
+else
+{
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <h1 class="mb-0">@unit.Alias</h1>
+        <div class="d-flex gap-2">
+            <a class="btn btn-primary" href="rentals/@unit.Id/edit">Edit</a>
+            <a class="btn btn-outline-danger" href="rentals/@unit.Id/delete">Delete</a>
+        </div>
+    </div>
+
+    <dl class="row">
+        <dt class="col-sm-3">Size</dt>
+        <dd class="col-sm-9">@unit.SquareMeters.ToString("N2") m²</dd>
+
+        <dt class="col-sm-3">Description</dt>
+        <dd class="col-sm-9 rental-description">@(unit.Description ?? "—")</dd>
+
+        <dt class="col-sm-3">Last updated</dt>
+        <dd class="col-sm-9">@unit.UpdatedAt.ToLocalTime().ToString("g")</dd>
+    </dl>
+
+    <h2 class="h4">Images</h2>
+    @if (unit.Images.Count == 0)
+    {
+        <p class="text-body-secondary">No images yet.</p>
+    }
+    else
+    {
+        <div class="row g-3">
+            @foreach (var image in unit.Images)
+            {
+                <div class="col-6 col-md-4 col-lg-3">
+                    <a href="@image.Url" target="_blank" rel="noopener">
+                        <img src="@image.Url" alt="@image.FileName" class="rental-image rounded" />
+                    </a>
+                </div>
+            }
+        </div>
+    }
+
+    <p class="mt-4"><a href="rentals">Back to rentals</a></p>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private RentalUnit? unit;
+    private bool loaded;
+    private bool loadFailed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            unit = await RentalApi.GetAsync(Id);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load rental unit {Id}.", Id);
+            loadFailed = true;
+        }
+
+        loaded = true;
+    }
+}

@@ -1,6 +1,6 @@
 using System.Globalization;
-using Amazon.Runtime;
 using Amazon.S3;
+using Amazon.SecretsManager;
 using Microsoft.AspNetCore.Localization;
 using RainsCoAspire.ApiService.Data;
 using RainsCoAspire.ApiService.Options;
@@ -20,17 +20,15 @@ builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
-// AWS S3 for rental unit images. Access keys are read from appsettings for now; when they're absent the
-// SDK falls back to its default credential chain (environment variables, AWS profile, IAM role).
-var awsOptions = builder.Configuration.GetAWSOptions();
-var awsAccessKeyId = builder.Configuration["AWS:AccessKeyId"];
-var awsSecretAccessKey = builder.Configuration["AWS:SecretAccessKey"];
-if (!string.IsNullOrWhiteSpace(awsAccessKeyId) && !string.IsNullOrWhiteSpace(awsSecretAccessKey))
-{
-    awsOptions.Credentials = new BasicAWSCredentials(awsAccessKeyId, awsSecretAccessKey);
-}
-builder.Services.AddDefaultAWSOptions(awsOptions);
+// AWS: S3 stores rental unit images; Secrets Manager holds the bucket name. No access keys live in code or
+// config. Like `new AmazonS3Client()`, the clients use the SDK's default credential chain, which reads the
+// [default] profile from ~/.aws/credentials (or an IAM role when hosted on AWS). AWS:Region is optional; when
+// empty, the region comes from ~/.aws/config or the AWS_REGION environment variable.
+builder.Services.AddDefaultAWSOptions(builder.Configuration.GetAWSOptions());
 builder.Services.AddAWSService<IAmazonS3>();
+builder.Services.AddAWSService<IAmazonSecretsManager>();
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<ISecretsProvider, AwsSecretsManagerProvider>();
 builder.Services.Configure<S3StorageOptions>(builder.Configuration.GetSection(S3StorageOptions.SectionName));
 
 builder.Services.AddScoped<IRentalUnitRepository, RentalUnitRepository>();

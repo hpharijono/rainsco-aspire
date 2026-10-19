@@ -1,0 +1,11 @@
+@inject NavigationManager Navigation
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Come back to the current page after signing in. Replace the history entry so Back doesn't return here.
+        var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
+        var loginUrl = string.IsNullOrEmpty(returnUrl) ? "login" : $"login?returnUrl={Uri.EscapeDataString(returnUrl)}";
+        Navigation.NavigateTo(loginUrl, replace: true);
+    }
+}

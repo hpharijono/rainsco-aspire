@@ -1,11 +1,15 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RainsCoAspire.ApiService.Dtos;
+using RainsCoAspire.ApiService.Security;
 using RainsCoAspire.ApiService.Services;
 
 namespace RainsCoAspire.ApiService.Controllers;
 
+// Any signed-in user can view rental units; only admins can change them.
 [ApiController]
 [Route("api/rental-units")]
+[Authorize]
 public class RentalUnitsController(IRentalUnitService rentalUnitService) : ControllerBase
 {
     [HttpGet]
@@ -24,6 +28,7 @@ public class RentalUnitsController(IRentalUnitService rentalUnitService) : Contr
     }
 
     [HttpPost]
+    [Authorize(Roles = AppRoles.Admin)]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -36,11 +41,12 @@ public class RentalUnitsController(IRentalUnitService rentalUnitService) : Contr
         }
         catch (RequestValidationException ex)
         {
-            return ToValidationProblem(ex);
+            return this.ToValidationProblem(ex);
         }
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = AppRoles.Admin)]
     [Consumes("multipart/form-data")]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -53,30 +59,17 @@ public class RentalUnitsController(IRentalUnitService rentalUnitService) : Contr
         }
         catch (RequestValidationException ex)
         {
-            return ToValidationProblem(ex);
+            return this.ToValidationProblem(ex);
         }
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = AppRoles.Admin)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
         var deleted = await rentalUnitService.DeleteAsync(id, cancellationToken);
         return deleted ? NoContent() : NotFound();
-    }
-
-    // Produces the same response shape as the automatic [ApiController] model validation errors.
-    private ActionResult ToValidationProblem(RequestValidationException exception)
-    {
-        foreach (var (field, messages) in exception.Errors)
-        {
-            foreach (var message in messages)
-            {
-                ModelState.AddModelError(field, message);
-            }
-        }
-
-        return ValidationProblem(ModelState);
     }
 }

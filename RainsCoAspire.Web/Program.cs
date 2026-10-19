@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.Http.Resilience;
 using RainsCoAspire.Web;
+using RainsCoAspire.Web.Auth;
 using RainsCoAspire.Web.Components;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,6 +14,18 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 builder.Services.AddOutputCache();
+
+// Users sign in with the API, which returns a JWT. The browser keeps it in localStorage and
+// ApiAuthenticationStateProvider reads it back over JS interop, so pages render interactively without prerendering.
+builder.Services.AddAuthorizationCore();
+builder.Services.AddCascadingAuthenticationState();
+builder.Services.AddScoped<ApiAuthenticationStateProvider>();
+builder.Services.AddScoped<AuthenticationStateProvider>(services => services.GetRequiredService<ApiAuthenticationStateProvider>());
+
+builder.Services.AddHttpClient<AuthApiClient>(client =>
+    {
+        client.BaseAddress = new("https+http://apiservice");
+    });
 
 builder.Services.AddHttpClient<WeatherApiClient>(client =>
     {

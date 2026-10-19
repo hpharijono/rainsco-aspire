@@ -1,20 +1,40 @@
 ﻿@inherits LayoutComponentBase
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+@inject ApiAuthenticationStateProvider AuthStateProvider
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+@* Every page with this layout requires a signed-in user. *@
+<AuthorizeView>
+    <Authorized>
+        <div class="page">
+            <div class="sidebar">
+                <NavMenu />
+            </div>
+
+            <main>
+                <div class="top-row px-4">
+                    <span class="text-truncate" title="@context.User.Identity?.Name">
+                        @context.User.FindFirstValue(ClaimTypes.GivenName) @context.User.FindFirstValue(ClaimTypes.Surname)
+                    </span>
+                    <button type="button" class="btn btn-link" @onclick="AuthStateProvider.SignOutAsync">Sign out</button>
+                </div>
+
+                <article class="content px-4">
+                    @Body
+                </article>
+            </main>
         </div>
-
-        <article class="content px-4">
-            @Body
-        </article>
-    </main>
-</div>
+    </Authorized>
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+    <Authorizing>
+        <div class="d-flex justify-content-center align-items-center min-vh-100">
+            <div class="spinner-border text-secondary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    </Authorizing>
+</AuthorizeView>
 
 <div id="blazor-error-ui">
     An unhandled error has occurred.

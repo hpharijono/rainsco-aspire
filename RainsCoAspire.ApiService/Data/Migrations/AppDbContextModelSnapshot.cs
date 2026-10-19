@@ -93,6 +93,105 @@ namespace RainsCoAspire.ApiService.Data.Migrations
                     b.ToTable("RentalUnitImages", (string)null);
                 });
 
+            modelBuilder.Entity("RainsCoAspire.ApiService.Models.Role", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Roles", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Name = "Admin"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Name = "Renter"
+                        });
+                });
+
+            modelBuilder.Entity("RainsCoAspire.ApiService.Models.User", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<int>("RoleId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SecurityStamp")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RoleId");
+
+                    b.HasIndex("Username")
+                        .IsUnique();
+
+                    b.ToTable("Users", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 18, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            FirstName = "System",
+                            LastName = "Administrator",
+                            PasswordHash = "AQAAAAIAAYagAAAAEJVfHdFpfc3g26mI4pABENl4UFBnknSJ/n6uu7y42G8FfW59UU8mDQM1b3i+irVkBg==",
+                            RoleId = 1,
+                            SecurityStamp = "58822e79-bdb4-429e-b172-4b4843f2bb8d",
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 18, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Username = "admin"
+                        });
+                });
+
             modelBuilder.Entity("RainsCoAspire.ApiService.Models.RentalUnitImage", b =>
                 {
                     b.HasOne("RainsCoAspire.ApiService.Models.RentalUnit", "RentalUnit")
@@ -104,9 +203,25 @@ namespace RainsCoAspire.ApiService.Data.Migrations
                     b.Navigation("RentalUnit");
                 });
 
+            modelBuilder.Entity("RainsCoAspire.ApiService.Models.User", b =>
+                {
+                    b.HasOne("RainsCoAspire.ApiService.Models.Role", "Role")
+                        .WithMany("Users")
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Role");
+                });
+
             modelBuilder.Entity("RainsCoAspire.ApiService.Models.RentalUnit", b =>
                 {
                     b.Navigation("Images");
+                });
+
+            modelBuilder.Entity("RainsCoAspire.ApiService.Models.Role", b =>
+                {
+                    b.Navigation("Users");
                 });
 #pragma warning restore 612, 618
         }

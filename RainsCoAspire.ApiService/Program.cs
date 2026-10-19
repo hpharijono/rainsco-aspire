@@ -1,10 +1,14 @@
 using System.Globalization;
 using Amazon.S3;
 using Amazon.SecretsManager;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
 using RainsCoAspire.ApiService.Data;
+using RainsCoAspire.ApiService.Models;
 using RainsCoAspire.ApiService.Options;
 using RainsCoAspire.ApiService.Repositories;
+using RainsCoAspire.ApiService.Security;
 using RainsCoAspire.ApiService.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -35,6 +39,22 @@ builder.Services.AddScoped<IRentalUnitRepository, RentalUnitRepository>();
 builder.Services.AddScoped<IImageStorageService, S3ImageStorageService>();
 builder.Services.AddScoped<IRentalUnitService, RentalUnitService>();
 
+// Authentication: clients sign in at /api/auth/login and send the returned JWT as a bearer token. Users and roles
+// are stored in our own Users/Roles tables (not ASP.NET Core Identity); only Identity's password hasher is used.
+builder.Services.AddOptions<JwtOptions>()
+    .BindConfiguration(JwtOptions.SectionName)
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
+builder.Services.ConfigureOptions<ConfigureJwtBearerOptions>();
+builder.Services.AddAuthorization();
+
+builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
+builder.Services.AddSingleton<ITokenService, JwtTokenService>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -47,6 +67,9 @@ app.UseRequestLocalization(new RequestLocalizationOptions
     SupportedCultures = [CultureInfo.InvariantCulture],
     SupportedUICultures = [CultureInfo.InvariantCulture],
 });
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 if (app.Environment.IsDevelopment())
 {

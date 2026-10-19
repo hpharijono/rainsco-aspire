@@ -1,0 +1,138 @@
+@page "/login"
+@layout PublicLayout
+
+@inject AuthApiClient AuthApi
+@inject ApiAuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+@inject ILogger<Login> Logger
+
+<PageTitle>Sign in</PageTitle>
+
+<div class="card shadow-sm login-card">
+    <div class="card-body p-4">
+        <h1 class="h3 mb-1">RainsCoAspire</h1>
+        <p class="text-body-secondary mb-4">Sign in to continue.</p>
+
+        @if (!showForm)
+        {
+            <div class="d-flex justify-content-center py-4">
+                <div class="spinner-border text-secondary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        }
+        else
+        {
+            <EditForm Model="model" OnValidSubmit="SignInAsync">
+                <DataAnnotationsValidator />
+
+                @if (error is not null)
+                {
+                    <div class="alert alert-danger" role="alert">@error</div>
+                }
+
+                <div class="mb-3">
+                    <label for="username" class="form-label">Username</label>
+                    <InputText @ref="usernameInput" id="username" class="form-control" @bind-Value="model.Username" autocomplete="username" />
+                    <ValidationMessage For="() => model.Username" />
+                </div>
+
+                <div class="mb-4">
+                    <label for="password" class="form-label">Password</label>
+                    <InputText id="password" type="password" class="form-control" @bind-Value="model.Password" autocomplete="current-password" />
+                    <ValidationMessage For="() => model.Password" />
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100" disabled="@isBusy">
+                    @if (isBusy)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                    }
+                    Sign in
+                </button>
+            </EditForm>
+        }
+    </div>
+</div>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationState { get; set; } = default!;
+
+    // Base-relative page to open after signing in, set by RedirectToLogin.
+    [SupplyParameterFromQuery]
+    public string? ReturnUrl { get; set; }
+
+    private readonly LoginFormModel model = new();
+    private InputText? usernameInput;
+    private bool showForm;
+    private bool focusUsername;
+    private bool isBusy;
+    private string? error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthenticationState;
+        if (state.User.Identity?.IsAuthenticated == true)
+        {
+            NavigateToReturnUrl();
+            return;
+        }
+
+        showForm = true;
+        focusUsername = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // The form appears after the session check, too late for the autofocus attribute.
+        if (focusUsername && usernameInput?.Element is { } element)
+        {
+            focusUsername = false;
+            await element.FocusAsync();
+        }
+    }
+
+    private async Task SignInAsync()
+    {
+        error = null;
+        isBusy = true;
+        try
+        {
+            var login = await AuthApi.LoginAsync(model.Username, model.Password);
+            if (login is null)
+            {
+                error = "Invalid username or password.";
+                return;
+            }
+
+            await AuthStateProvider.SignInAsync(login);
+            NavigateToReturnUrl();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to sign in.");
+            error = "Something went wrong while signing in. Please try again.";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private void NavigateToReturnUrl()
+    {
+        // Only follow links within this app, so a crafted link can't send the user to another site after signing in.
+        var target = "";
+        if (!string.IsNullOrEmpty(ReturnUrl))
+        {
+            var uri = Navigation.ToAbsoluteUri(ReturnUrl).AbsoluteUri;
+            if (uri.StartsWith(Navigation.BaseUri, StringComparison.OrdinalIgnoreCase))
+            {
+                target = Navigation.ToBaseRelativePath(uri);
+            }
+        }
+
+        Navigation.NavigateTo(target);
+    }
+}

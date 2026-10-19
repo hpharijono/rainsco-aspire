@@ -4,3 +4,80 @@ GET {{ApiService_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
+
+# Sign in first; the requests below reuse the token from this response.
+# @name login
+POST {{ApiService_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "admin123"
+}
+
+###
+
+@token = {{login.response.body.$.token}}
+
+GET {{ApiService_HostAddress}}/api/auth/me
+Authorization: Bearer {{token}}
+
+###
+
+POST {{ApiService_HostAddress}}/api/auth/change-password
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "currentPassword": "admin123",
+  "newPassword": "a-much-better-password"
+}
+
+###
+
+GET {{ApiService_HostAddress}}/api/users
+Authorization: Bearer {{token}}
+
+###
+
+POST {{ApiService_HostAddress}}/api/users
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "username": "jane.doe",
+  "password": "renter-password",
+  "firstName": "Jane",
+  "lastName": "Doe",
+  "role": "Renter"
+}
+
+###
+
+PUT {{ApiService_HostAddress}}/api/users/2
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "username": "jane.doe",
+  "firstName": "Jane",
+  "lastName": "Smith",
+  "role": "Renter"
+}
+
+###
+
+POST {{ApiService_HostAddress}}/api/users/2/reset-password
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "newPassword": "new-renter-password"
+}
+
+###
+
+DELETE {{ApiService_HostAddress}}/api/users/2
+Authorization: Bearer {{token}}
+
+###

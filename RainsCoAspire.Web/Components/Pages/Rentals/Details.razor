@@ -23,10 +23,12 @@ else
 {
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <h1 class="mb-0">@unit.Alias</h1>
-        <div class="d-flex gap-2">
-            <a class="btn btn-primary" href="rentals/@unit.Id/edit">Edit</a>
-            <a class="btn btn-outline-danger" href="rentals/@unit.Id/delete">Delete</a>
-        </div>
+        <AuthorizeView Roles="@AppRoles.Admin">
+            <div class="d-flex gap-2">
+                <a class="btn btn-primary" href="rentals/@unit.Id/edit">Edit</a>
+                <a class="btn btn-outline-danger" href="rentals/@unit.Id/delete">Delete</a>
+            </div>
+        </AuthorizeView>
     </div>
 
     <dl class="row">

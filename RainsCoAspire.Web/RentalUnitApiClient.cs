@@ -1,20 +1,25 @@
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
+using RainsCoAspire.Web.Auth;
 using RainsCoAspire.Web.Models;
 
 namespace RainsCoAspire.Web;
 
-public class RentalUnitApiClient(HttpClient httpClient)
+public class RentalUnitApiClient(HttpClient httpClient, ApiAuthenticationStateProvider authStateProvider)
 {
     private const string BasePath = "/api/rental-units";
 
-    public async Task<RentalUnit[]> GetAllAsync(CancellationToken cancellationToken = default) =>
-        await httpClient.GetFromJsonAsync<RentalUnit[]>(BasePath, cancellationToken) ?? [];
+    public async Task<RentalUnit[]> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        using var response = await SendAsync(HttpMethod.Get, BasePath, content: null, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<RentalUnit[]>(cancellationToken) ?? [];
+    }
 
     public async Task<RentalUnit?> GetAsync(int id, CancellationToken cancellationToken = default)
     {
-        using var response = await httpClient.GetAsync($"{BasePath}/{id}", cancellationToken);
+        using var response = await SendAsync(HttpMethod.Get, $"{BasePath}/{id}", content: null, cancellationToken);
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
             return null;
@@ -30,7 +35,7 @@ public class RentalUnitApiClient(HttpClient httpClient)
         CancellationToken cancellationToken = default)
     {
         using var content = CreateFormContent(model, images, removedImageIds: []);
-        using var response = await httpClient.PostAsync(BasePath, content, cancellationToken);
+        using var response = await SendAsync(HttpMethod.Post, BasePath, content, cancellationToken);
         return await ReadRentalUnitAsync(response, cancellationToken);
     }
 
@@ -43,7 +48,7 @@ public class RentalUnitApiClient(HttpClient httpClient)
         CancellationToken cancellationToken = default)
     {
         using var content = CreateFormContent(model, newImages, removedImageIds);
-        using var response = await httpClient.PutAsync($"{BasePath}/{id}", content, cancellationToken);
+        using var response = await SendAsync(HttpMethod.Put, $"{BasePath}/{id}", content, cancellationToken);
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
             return null;
@@ -55,7 +60,7 @@ public class RentalUnitApiClient(HttpClient httpClient)
     // Returns false when the rental unit no longer exists.
     public async Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default)
     {
-        using var response = await httpClient.DeleteAsync($"{BasePath}/{id}", cancellationToken);
+        using var response = await SendAsync(HttpMethod.Delete, $"{BasePath}/{id}", content: null, cancellationToken);
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
             return false;
@@ -63,6 +68,25 @@ public class RentalUnitApiClient(HttpClient httpClient)
 
         response.EnsureSuccessStatusCode();
         return true;
+    }
+
+    // Sends the request as the signed-in user. A 401 means the session expired or was revoked, so the user is signed
+    // out, which takes them to the sign-in page. The caller still gets the 401 response.
+    private async Task<HttpResponseMessage> SendAsync(HttpMethod method, string requestUri, HttpContent? content, CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(method, requestUri) { Content = content };
+        if (authStateProvider.AccessToken is { } token)
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        }
+
+        var response = await httpClient.SendAsync(request, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            await authStateProvider.SignOutAsync();
+        }
+
+        return response;
     }
 
     private static MultipartFormDataContent CreateFormContent(
